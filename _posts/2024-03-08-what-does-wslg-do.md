@@ -8,12 +8,6 @@ tags:
   - wslg
 ---
 
-<!--
-#！https://zhuanlan.zhihu.com/p/686018563
-
-# WSLg 做了什么
--->
-
 [知乎](https://zhuanlan.zhihu.com/p/686018563)
 
 WSL2/WSLg 的系统架构[^1]就不谈了, 大家都知道 WSL2 发行版基本就是一个 Hyper-V 虚拟机里的 Linux , 加上与宿主 Windows 的互联互通, 与 WSLg 系统的互联互通.  
