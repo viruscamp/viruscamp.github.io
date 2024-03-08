@@ -6,12 +6,15 @@ tags:
   - arch
   - wsl
   - wslg
+  - namespace
 ---
 
 [知乎](https://zhuanlan.zhihu.com/p/686018563)
 
 WSL2/WSLg 的系统架构[^1]就不谈了, 大家都知道 WSL2 发行版基本就是一个 Hyper-V 虚拟机里的 Linux , 加上与宿主 Windows 的互联互通, 与 WSLg 系统的互联互通.  
 今天研究下 WSL2 发行版比 Hyper-V 里安装的 Linux 多了些什么, 才能做到上述的互联互通.  
+
+**Hyper-V 里面只有一个虚拟机即系统发行版, 而所有的用户发行版都是系统发行版下用 namespace 隔离出的子系统**
 
 # 用户发行版与系统发行版
 ## 用户发行版: 用户安装的 Linux
@@ -33,9 +36,15 @@ NAME="Common Base Linux Mariner"
 VERSION="2.0.20230630"
 ```
 
-# kernel 内核修改
-进入用户发行版, `ls /boot` 是看不见任何文件的, 实际的启动内核在 `C:\Program Files\WSL\tools`.  
+## Hyper-V 里面只有一个虚拟机即系统发行版, 而所有的用户发行版都是系统发行版下用 namespace 隔离出的子系统  
+    用户发行版类似于运行在 docker 容器中[^5]  
+    这可以解释所有的跨系统硬链接  
+    在系统发行版运行 `top` 可以确认  
 
+# kernel 内核修改
+用户发行版既然是运行在 namespace 容器中, 自然没有自己的内核.  
+~~进入用户发行版, `ls /boot` 是看不见任何文件的, 实际的启动内核在 `C:\Program Files\WSL\tools`.~~  
+WSLg 系统的内核 Windows 内有一份:  
 ```sh
 $ ls -l "/mnt/c/Program Files/WSL/tools"
 总计 18172
@@ -44,17 +53,16 @@ $ ls -l "/mnt/c/Program Files/WSL/tools"
 -r-xr-xr-x 1 user1 user1 14387168 10月 5日 21:23 kernel
 ```
 这个内核除了精简了不需要的驱动以外, 只加了一个驱动[^2] `drivers/gpu/dxgkrnl`, 这个驱动会生成 `/dev/dxg`.  
-这个内核应该是 WSLg 系统和所有已安装的用户发行版共享的.  
+~~这个内核应该是 WSLg 系统和所有已安装的用户发行版共享的.~~  
+
+# 启动用户发行版 namepace
+    - 创建 namespace  
+    - 挂载用户发行版的 vhdx  
+    - 挂载 `/dev/*` 和必要的文件目录  
 
 # `/init` 启动程序
-内核启动后, 会复制一份 `/init` 并启动.  
-
-```sh
-$ md5sum "/mnt/c/Program Files/WSL/tools/init"
-22443cb1e29a18cc768895e49bcf3e85  /mnt/c/Program Files/WSL/tools/init
-$ md5sum /init
-22443cb1e29a18cc768895e49bcf3e85  /init
-```
+WSLg 启动用户发行版后在其中运行 `/init`.  
+~~内核启动后, 会复制一份 `/init` 并启动.~~  
 
 - 没有启用 systemd 的系统  
 ```
@@ -66,13 +74,14 @@ $ md5sum /init
 ```
 
 1. 启动网络文件服务器  
-    可以看见一个进程 `plan9 --control-socket 5 --log-level 4 --server-fd`, 这是从 WSL1 时代就有的, 用于宿主 Windows 文件互通的网络文件系统[^3], 叫做 `Plan 9 file server`.   
+    可以看见一个进程 `plan9 --control-socket 5 --log-level 4 --server-fd`, 这是从 WSL1 时代就有的, 用于宿主 Windows 文件互通的网络文件系统[^3], 叫做 `Plan 9 file server`.  
 
-2. 链接与挂载 WSLg 内的文件  
-    - 设备文件(`/dev/dxg`) 这个是个跨系统硬链接
-    - socket 文件(`/tmp/.X11-unix/X0`) 注意一下, `/tmp/.X11-unix`是目录的跨系统硬链接
-    - 驱动文件(`/usr/lib/wsl/drivers`)
-    - 其他(`/mnt/wslg/*`)
+2. ~~链接与挂载 WSLg 内的文件~~  
+    - 所有指向系统发行版的挂载都是系统发行版通过 namespace 挂载的  
+    - ~~设备文件(`/dev/dxg`) 这个是个跨系统硬链接~~  
+    - ~~socket 文件(`/tmp/.X11-unix/X0`) 注意一下, `/tmp/.X11-unix`是目录的跨系统硬链接~~  
+    - ~~驱动文件(`/usr/lib/wsl/drivers`)~~  
+    - ~~其他(`/mnt/wslg/*`)~~  
 
     ```sh
     $ ls -lda /tmp/.X11-unix $XDG_RUNTIME_DIR/wayland* $XDG_RUNTIME_DIR/pulse/*
@@ -140,8 +149,8 @@ $ md5sum /init
     lrwxrwxrwx 1 root      root      19 Mar  6 12:49 /tmp/.X11-unix -> /mnt/wslg/.X11-unix
     ```
 
-# 设备硬链接可能导致的问题  
-研究发现, WSL2 的许多设备文件(以 `/dev/dri/card0` 为例), 是同一个文件在多个系统内的硬链接.  
+# ~~设备硬链接~~设备文件共享可能导致的问题  
+研究发现, WSL2 的许多设备文件(以 `/dev/dri/card0` 为例), 是同一个文件~~在多个系统内的硬链接~~.  
 
 ```sh
 wslg$ stat /dev/dri/card0
@@ -187,8 +196,11 @@ Change: 2024-03-08 18:31:17.232796176 +0800
 2. 后一个启动的用户发行版会更改设备文件的用户组  
     比如 Ubuntu 就把 `/dev/dri/card0` 改为属于 gid=44, 在先启动的 Arch 看来, `/dev/dri/card0` 就不属于 Arch 的 video, 那么普通用户就无法使用 GPU.  
 
+**应该使用 `user_namespaces` 的 `/proc/1/gid_map` 来转换 gid .**
+
 # References 参考链接
 [^1]: [WSLg Architecture](https://devblogs.microsoft.com/commandline/wslg-architecture/)  
 [^2]: [DirectX is coming to the Windows Subsystem for Linux](https://devblogs.microsoft.com/directx/directx-heart-linux/)  
 [^3]: [What is this weird process I see in WSL called 'plan9'?](https://superuser.com/questions/1749690/what-is-this-weird-process-i-see-in-wsl-called-plan9)  
 [^4]: [With two distros in WSL2, group of /dev/dri/card0 may be changed by the last started distro, and cause vainfo failed in the first distro ](https://github.com/microsoft/wslg/issues/1208)  
+[^5]: [How does WSL/WSL2/WSLg work without systemd?](https://superuser.com/questions/1719393/how-does-wsl-wsl2-wslg-work-without-systemd)  
