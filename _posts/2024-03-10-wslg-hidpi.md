@@ -23,7 +23,7 @@ tags:
 
 以下方案不涉及多显示器  
 
-环境变量前加 `export` 然后放在 `~/.bash_profile`  
+环境变量放入 `~/.bash_profile`  
 
 # Weston Scale  
   **输出时强制放大 很可能模糊**  
@@ -44,10 +44,10 @@ tags:
   - 首选 wayland 其次 x11[^1]  
   - 效果比较好, 唯一的问题是标题栏无法缩放  
   ```
-  QT_QPA_PLATFORM="wayland;xcb"
-  QT_AUTO_SCREEN_SCALE_FACTOR=0
-  QT_ENABLE_HIGHDPI_SCALING=0
-  QT_SCALE_FACTOR=1.5
+  export QT_QPA_PLATFORM="wayland;xcb"
+  export QT_AUTO_SCREEN_SCALE_FACTOR=0
+  export QT_ENABLE_HIGHDPI_SCALING=0
+  export QT_SCALE_FACTOR=1.5
   ```
 
 # GTK 3/4  
@@ -56,14 +56,26 @@ tags:
   - GDK_DPI_SCALE 似乎只改了字体大小, 控件是被字体撑大的, 只有图标的按钮就没有扩大, 比如窗口关闭按钮, 而且标题栏无法缩放[^4]  
   - GDK_DPI_SCALE 在 1.5 及以下效果还行, 2 的效果比较差  
   ```
-  GDK_DPI_SCALE=1.5
+  export GDK_DPI_SCALE=1.5
   ```
 
 # XWayland
-  针对 GTK2 和 xcalc 之类, 暂时没有什么太好的方案  
+  针对 GTK2 程序和 xcalc 之类, 理论对 Intellj 的 IDE 有效[^5].  
+  安装 xrdb 比如 `pacman -S xorg-xrdb` [^7].  
+  创建 ` ~/.Xresources` 文件, 内容如下, 其中 144=96*1.5 其他缩放比例可以按此计算[^6].  
+  ```
+  Xft.dpi: 144
+  ```
+  在 `~/.bash_profile` 加入:  
+  ```
+  xrdb -merge ~/.Xresources
+  ```
 
 # References 参考链接
 [^1]: [HiDPI - ArchWiki](https://wiki.archlinux.org/title/HiDPI)  
 [^2]: [WSLg Configuration Options for Debugging](https://github.com/microsoft/wslg/wiki/WSLg-Configuration-Options-for-Debugging)  
 [^3]: [WSLg 高分屏上显示过小的问题](https://www.yijianhao.cn/archives/wslg%E9%AB%98%E5%88%86%E5%B1%8F%E4%B8%8A%E6%98%BE%E7%A4%BA%E8%BF%87%E5%B0%8F%E7%9A%84%E9%97%AE%E9%A2%98)  
 [^4]: [【Linux】关于 X11 GUI 转发和 WSLg 的坑](https://juejin.cn/post/7006357005954711588)  
+[^5]: [一种使 WSLg/X11 转发支持 JetBrains 系 IDE 的非整数缩放的方法](https://zhuanlan.zhihu.com/p/424930447)  
+[^6]: [在 Xwayland on Sway 上用上真正 High 的 DPI](https://yhndnzj.com/2022/10/17/sway-xwayland-real-hidpi/)  
+[^7]: [Does the Xresources configuration file affect Wayland?](https://unix.stackexchange.com/questions/295156)  
