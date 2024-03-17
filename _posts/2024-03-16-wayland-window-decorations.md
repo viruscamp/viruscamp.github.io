@@ -50,6 +50,9 @@ tags:
 ## X11 程序在 Wayland 中  
 - Gtk2 Qt4 xterm 等 X11 程序, 由 xwayland 作为 X Server  
 - Wayland Compositor 内嵌一个 Window Manager, 只用于 X11 程序, 负责绘制此类程序的窗口装饰  
+  参见 [xwayland/window-manager.c](https://github.com/microsoft/weston-mirror/blob/working/xwayland/window-manager.c#L1264),
+  应该是可以创建[主题](https://github.com/microsoft/weston-mirror/blob/working/shared/cairo-util.c#L385),
+  但目前写死了大小,颜色,字体和[图标](https://github.com/microsoft/weston-mirror/blob/working/shared/frame.c#L376).  
 - 使用 wayland 缩放时适配 HiDPI  
 - 客户程序自行处理 HiDPI 时, 不会缩放  
 

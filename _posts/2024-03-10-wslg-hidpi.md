@@ -50,7 +50,7 @@ tags:
   export QT_SCALE_FACTOR=1.5
   ```
 
-# GTK 3/4  
+# Gtk 3/4  
   - Gtk3 和 Gtk4 都是首选 wayland 的, 而 GDK_SCALE 在 wayland 中是无效的  
   - GDK_SCALE 控件字体全部按比例扩大, 但只支持整数
   - GDK_DPI_SCALE 似乎只改了字体大小, 控件是被字体撑大的, 只有图标的按钮就没有扩大, 比如窗口关闭按钮, 而且标题栏无法缩放[^4]  
@@ -70,6 +70,8 @@ tags:
   ```
   xrdb -merge ~/.Xresources
   ```
+  **重要提示**  
+  当 Qt5/6 或 Gtk3/4 程序后端使用 X11 时, 此 DPI 设定也对这些程序有效, 而加上已设定的`QT_SCALE_FACTOR=1.5`或`GDK_DPI_SCALE=1.5`, 最终会变成 2.25 倍放大.  
 
 # References 参考链接
 [^1]: [HiDPI - ArchWiki](https://wiki.archlinux.org/title/HiDPI)  
