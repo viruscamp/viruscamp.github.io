@@ -41,11 +41,12 @@ tags:
 
 - Qt5, Qt6 由控件库自绘  
     - 普通的标题栏, 插件化  
-        默认插件为: `/usr/lib/qt6/plugins/wayland-decoration-client/libbradient.so`  
-	    设置插件方法: `QT_WAYLAND_DECORATION=bradient featherpad`  
-        **不受`QT_SCALE_FACTOR`影响**  
+      默认插件为: `/usr/lib/qt6/plugins/wayland-decoration-client/libbradient.so`  
+      **不受`QT_SCALE_FACTOR`影响**  
+      本人已修改官方插件使之支持HiDPI: [qt-wayland-decorations-bradient-mkii](https://github.com/viruscamp/qt-wayland-decorations-bradient-mkii)  
+      用法: `QT_WAYLAND_DECORATION=bradient-mkii featherpad`  
     - 也可以完全自绘[^3], 但目前没有方便的控件  
-        `window.setWindowFlags(Qt::FramelessWindowHint)`  
+      `window.setWindowFlags(Qt::FramelessWindowHint)`  
 
 ## X11 程序在 Wayland 中  
 - Gtk2 Qt4 xterm 等 X11 程序, 由 xwayland 作为 X Server  
