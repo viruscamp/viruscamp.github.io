@@ -17,6 +17,7 @@ tags:
 
 ## miniwsl 分析
 - miniwsl 的进程树  
+
 ```
 1 {init(miniwsl)} /init
 ├─ 4 {init} plan9 --control-socket 5 --log-level 4 --server-fd
@@ -26,7 +27,7 @@ tags:
 ```
 
 - miniwsl 的环境变量  
-通过 `cat /proc/8/environ`({Relay(n)} /init) 和 `cat /proc/9/environ`(sh):  
+
 ```sh
 $ cat /proc/8/environ
 WSL2_CROSS_DISTRO=/wsl
@@ -38,7 +39,8 @@ WAYLAND_DISPLAY=wayland-0
 PULSE_SERVER=unix:/mnt/wslg/PulseServer
 WSL_INTEROP=/run/WSL/8_interop
 ```
-我们知道重要的环境变量是 `/init` 的 Relay 进程在启动 `sh` 时设置给 `sh` 的  
+
+我们看见重要的环境变量是 `/init` 的 Relay 进程在启动 `sh` 时设置给 `sh` 的  
 
 - miniwsl 的文件系统  
 暂时推测 wsl-system 挂载 WSL 子系统对应的`ext4.vhdx`为子系统的`/`,  
@@ -58,6 +60,7 @@ WSL_INTEROP=/run/WSL/8_interop
 Ubuntu@WSL 禁用了 `tmp.mount`, 方法是只有 `/usr/share/systemd/tmp.mount` 而没有 `/usr/lib/systemd/system/tmp.mount`.  
 
 Arch 默认就有 `/usr/lib/systemd/system/tmp.mount` 一直启用 `tmp.mount`. 可以用在 WSL2 中禁用:  
+
 ```sh
 $ sudo systemctl mask tmp.mount
 Created symlink /etc/systemd/system/tmp.mount → /dev/null.
@@ -71,6 +74,7 @@ Created symlink /etc/systemd/system/tmp.mount → /dev/null.
 5. 启用 `tmp.mount`, 挂载文件 `mount -o bind,ro /tmp/.X11-unix/X0 /mnt/wslg/.X11-unix/X0`
 
 创建链接可以使用 tmpfiles.d 来实现
+
 ```
 $ cat /etc/tmpfiles.d/wslg.conf
 # See tmpfiles.d(5) for details
@@ -107,6 +111,7 @@ Ubuntu@WSL 之前能正常创建上述4个文件的链接, 但近日的 24.04 �
 保持 `XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir` 是不可接受的, 那么只能创建链接.  
 
 创建链接可以使用 user-tmpfiles.d 来实现, 创建文件 `~/.config/user-tmpfiles.d/wslg.conf` 或 `/usr/share/user-tmpfiles.d/wslg.conf`, 内容为:  
+
 ```
 # Type Path              Mode UID  GID  Age Argument
 L+     %t/wayland-0      -    -    -    -   /mnt/wslg/runtime-dir/wayland-0
