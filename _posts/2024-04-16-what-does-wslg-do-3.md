@@ -95,6 +95,39 @@ And there are more:
   systemd[1]: Finished User Runtime Directory /run/user/1000.
   ```
 
+  It's a bug in systemd-249 for Ubuntu-22.04 in `/lib/systemd/systemd-user-runtime-dir`:  
+
+  ```sh
+  $ sudo mkdir /run/user/33
+  $ sudo chgrp www-data /run/user/33
+  $ sudo chown www-data /run/user/33
+
+  $ ls -l /run/user
+  total 0
+  drwxr-xr-x 6 user1     user1     200 Apr 18 19:01 1000
+  drwxr-xr-x 2 www-data  www-data   40 Apr 18 19:04 33
+
+  $ sudo SYSTEMD_LOG_LEVEL=debug /lib/systemd/systemd-user-runtime-dir start 33
+  Will mount /run/user/33 owned by 33:33
+  /run/user/33 is already a mount point
+
+  $ sudo SYSTEMD_LOG_LEVEL=debug /lib/systemd/systemd-user-runtime-dir start 34
+  Will mount /run/user/34 owned by 34:34
+  Mounting tmpfs (tmpfs) on /run/user/34 (MS_NOSUID|MS_NODEV "mode=0700,uid=34,gid=34,size=1661825024,nr_inodes=405719")...
+
+  $ ls -l /run/user
+  total 0
+  drwxr-xr-x 6 user1     user1     200 Apr 18 19:01 1000
+  drwxr-xr-x 2 www-data  www-data   40 Apr 18 19:04 33
+  drwx------ 2 backup    backup     40 Apr 18 19:09 34
+
+  $ findmnt | grep run/user
+  │ └─/mnt/wslg/run/user/34                               tmpfs                   tmpfs         rw,nosuid,nodev,relatime,size=1622876k,nr_inodes=405719,mode=700,uid=34,gid=34
+  │ └─/run/user                                           none                    tmpfs         rw,nosuid,nodev,noexec,noatime,mode=755
+  │   └─/run/user                                         none[/run/user]         tmpfs         rw,relatime
+  │     └─/run/user/34                                    tmpfs                   tmpfs         rw,nosuid,nodev,relatime,size=1622876k,nr_inodes=405719,mode=700,uid=34,gid=34
+  ```
+
 
 ## WSL2 with systemd, but something goes wrong  
 1. In arch there is `/lib/systemd/system/tmp.mount`,  
