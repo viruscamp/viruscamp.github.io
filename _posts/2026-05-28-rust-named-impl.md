@@ -10,6 +10,20 @@ tags:
 
 目的很明确，绕过 rust 的孤儿规则。  
 应该比参考链接的方案写法更流利，读法更自然，且语法更完善。  
+1. 引入带名字的trait实现 named-impl
+```rust
+pub impl<T> Trait1 for Struct1<T> use ST1 {
+    fn trait1_fn(&self) {
+        println!("named impl ST1");
+    }
+}
+```
+2. 引入新的类型定义语法, 实现选择变体（Implementation Selection Variant），或简称为 实现变体（Impl Variant） 
+```rust
+type Struct1Default = Struct1<i32> + _ use default;
+type Struct1WithST1 = Struct1<i32> + Trait1 use ST1;
+```
+
 
 ## 概述
 ```rust
@@ -40,46 +54,48 @@ use mod1::{Struct1, Trait1, ST1};
 
 // 类型定义
 type Struct1Generic = Struct1<i32>;
-// 泛型类型, 默认推导为下一行的 Struct1<i32, _ use default>
+// 泛型类型, 默认推导为下一行的 Struct1<i32> + _ use default
 
-type Struct1Default = Struct1<i32, _ use default>;
+type Struct1Default = Struct1<i32> + _ use default;
 //具体类型, 与当前版本2024 Struct1 行为完全相同, 不使用任何 named-impl
 //此处 default 为弱关键字 weak keyword
 
-type Struct1WithST1 = Struct1<i32, Trait1 use ST1>;
+type Struct1WithST1 = Struct1<i32> + Trait1 use ST1;
 //具体类型, 布局与 Struct1 相同, 作为 Trait1 时使用 ST1 的实现， 默认省略了最后的 _ use default
-
-// 实现重叠与优先级规则
-type ComplexType = Struct1<i64,
-    From<i32> use mod2::Struct1Fromi32,
-    From<_: Add> use default,
-    From<_> use StructFrom, 
-    Trait1 use ST1
->;
-// 多个 named-impl 泛型参数, trait 之间可以有重叠overlap
-// 作为 From<i32> 时使用 Struct1Fromi32 , 作为 From<&str> 时使用 StructFrom
-// 从左到右找到第一个匹配的trait(use 前)后, 使用对应的实现
 
 // 有不同 impl 就不是同一类型
 assert!(TypeId::of::<Struct1Default>() != TypeId::of::<Struct1WithST1>());
 
+// 复杂定义1
+type ComplexType1 = &(i32 + Trait1 use ST1) + Trait2 use ST2;
+
+// 复杂定义2 实现重叠与优先级规则
+type ComplexType2 = Struct1<i64>
+    + From<i32> use mod2::Struct1Fromi32
+    + From<_: Add> use default
+    + From<_> use StructFrom
+    + Trait1 use ST1;
+// 多个 named-impl 泛型参数, trait 之间可以有重叠overlap
+// 作为 From<i32> 时使用 Struct1Fromi32 , 作为 From<&str> 时使用 StructFrom
+// 从左到右找到第一个匹配的trait(use 前)后, 使用对应的实现
+
 
 // 类型转换
-let s = Struct1(1); // 默认推导为 Struct1<i32, _ use default>
-let mut s_ref_named: &Struct1<i32, Trait1 use ST1> = &s; // ✅ 类型转换
-let s_ref_default = s_ref_named as &Struct1<i32, _ use default>; // ✅ 多向互转
+let s = Struct1(1); // 默认推导为 Struct1<i32> + _ use default
+let mut s_ref_named: &(Struct1<i32> + Trait1 use ST1) = &s; // ✅ 类型转换
+let s_ref_default = s_ref_named as &(Struct1<i32> + _ use default); // ✅ 多向互转
 s_ref_named = s_ref_default; // ❌ 禁止没有显式类型的自动转换
 
-let s4 = Struct1(4); // 默认推导为 Struct1<i32, _ use default>
-let s5: Struct1<i32, Trait1 use ST1> = s4; // move 加类型转换
+let s4 = Struct1(4); // 默认推导为 Struct1<i32> + _ use default
+let s5: Struct1<i32> + Trait1 use ST1 = s4; // move 加类型转换
 
-let vs: Vec<Struct1<i32>> = vec![]; // 默认推导为 Vec<Struct1<i32, _ use default>>
-let vs1: &Vec<Struct1<i32, Trait1 use ST1>> = &vs; // 类型定义中任意位置的 Struct1
-let vs2: &Vec<Struct1<i32, _ use default>> = vs1;
+let vs: Vec<Struct1<i32>> = vec![]; // 默认推导为 Vec<Struct1<i32> + _ use default>
+let vs1: &Vec<Struct1<i32> + Trait1 use ST1> = &vs; // 类型定义中任意位置的 Struct1
+let vs2: &Vec<Struct1<i32> + _ use default> = vs1;
 
 
 // 最终使用
-// 任意 T: Trait1 的 T 均可使用 Struct1<i32, _ use default> 和 Struct1<i32, Trait1 use ST1> 来类型实例化
+// 任意 T: Trait1 的 T 均可使用 Struct1<i32> + _ use default 和 Struct1<i32> + Trait1 use ST1 来类型实例化
 
 // 1. 直接调用
 s5.trait1_fn();
@@ -130,8 +146,8 @@ use_trait1(s_ref_named); // named impl ST1
 
 // 2. 返回值位置的 impl trait
 fn return_trait1() -> impl Trait1 {
-    let s4 = Struct1(4); // 默认推导为 Struct1<i32, _ use default>
-    return s4 as Struct1<i32, Trait1 use ST1>; // move 加类型转换
+    let s4 = Struct1(4); // 默认推导为 Struct1<i32> + _ use default
+    return s4 as (Struct1<i32> + Trait1 use ST1); // move 加类型转换
 }
 
 ```
@@ -144,7 +160,7 @@ pub trait Copy {}
 ```
 `#[disable_named_impl(all)]` 可供外部代码使用, 可置于 trait struct enum 等
 
-2. `Hash` `PartialOrd` 等至少在有默认实现时禁止 named-impl .
+2. `Hash` `Ord` `PartialOrd` `Eq` `PartialEq` 等至少在有默认实现时禁止 named-impl
 ```rust
 #[disable_named_impl(exist_default)]
 pub trait Hash {}
@@ -160,7 +176,7 @@ java.lang.reflect.Proxy , Python Decorator
 impl fmt::Display for i32 use ProxyDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "before ")?;
-        (self as &i32<Display use default>).fmt(f)?;
+        (self as &(i32 + Display use default)).fmt(f)?;
         write!(f, " after")?;
         Ok(())
     }
@@ -170,7 +186,7 @@ impl fmt::Display for i32 use ProxyDisplay {
 impl<T: Display> fmt::Display for T use ProxyDisplayDefault {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "before ")?;
-        (self as &T<Display use default>).fmt(f)?;
+        (self as &(T + Display use default)).fmt(f)?; // ❓
         write!(f, " after")?;
         Ok(())
     }
@@ -180,12 +196,11 @@ impl<T: Display> fmt::Display for T use ProxyDisplayDefault {
 3. 特化, 偏特化
 ```rust
 // 实现重叠与优先级规则
-type ComplexType = Struct1<i64,
-    From<i32> use Struct1Fromi32,
-    From<_: Add> use default,
-    From<_> use StructFrom, 
-    Trait1 use ST1
->;
+type ComplexType2 = Struct1<i64>
+    + From<i32> use mod2::Struct1Fromi32
+    + From<_: Add> use default
+    + From<_> use StructFrom
+    + Trait1 use ST1;
 // 多个 named-impl 泛型参数, trait 之间可以有重叠overlap
 // 作为 From<i32> 时使用 Struct1Fromi32 , 作为 From<&str> 时使用 StructFrom
 // 从左到右找到第一个匹配的trait(use 前)后, 使用对应的实现
@@ -202,8 +217,8 @@ fn use_struct1<T: Struct1>() {
     T::default().trait1_fn();
 }
 
-use_struct1<Struct1<_ use default>>();
-use_struct1<Struct1<Trait1 use TS1>>();
+use_struct1<Struct1 + _ use default>();
+use_struct1<Struct1 + Trait1 use TS1>();
 ```
 
 2. 类型隐式泛型, 函数参数和返回值都变成泛型
@@ -224,9 +239,9 @@ fn use_struct1<T: Struct1>(s: &T) {
 ## 简化语法
 1. named-impl 选择参数简化
 ```rust
-type Struct1Default = Struct1<i32, use default>;
-type Struct1WithST1 = Struct1<i32, use ST1>;
-type ComplexType = Struct1<i64, use Struct1Fromi32<i32>, use StructFrom<_>, use ST1>;
+type Struct1Default = Struct1<i32> + use default;
+type Struct1WithST1 = Struct1<i32> + use ST1;
+type ComplexType = Struct1<i64> + use Struct1Fromi32<i32> + use StructFrom<_> + use ST1;
 // trait的类型可以推导得到, 泛型参数在 impl name 之后
 ```
 
@@ -238,19 +253,22 @@ pub impl<T> Trait1 for Struct1<T> as ST1 {
         println!("named impl ST1");
     }
 }
-type Struct1Default = Struct1<i32, _ as default>;
-type Struct1WithST1 = Struct1<i32, Trait1 as ST1>;
+type Struct1Default = Struct1<i32> + _ as default;
+type Struct1WithST1 = Struct1<i32> + Trait1 as ST1;
 
 <Struct1<i32> as Trait1 as ST1>::trait1_fn(&s5);
 ```
 
-2. named-impl 选择参数用 `+` 追加在类型之后
+2. named-impl 选择参数在<>内泛型参数后
 ```rust
-type Struct1Default = Struct1<i32> + _ use default;
-type Struct1WithST1 = Struct1<i32> + Trait1 use ST1;
-type ComplexType = Struct1<i64> + From<i32> use Struct1Fromi32 + From<_> use StructFrom + Trait1 use ST1;
-```
+type i32AlterDisplay = i32<i32, Display use AlterDisplay>;
+type Struct1Default = Struct1<i32, _ use default>;
+type Struct1WithST1 = Struct1<i32, Trait1 use ST1>;
+type ComplexType = Struct1<i64, From<i32> use Struct1Fromi32, From<_> use StructFrom, Trait1 use ST1>;
 
+//❓ 如何用此替代语法表示
+type ComplexType1 = &(i32 + Trait1 as ST1) + Trait2 as ST2;
+```
 
 ## trait继承问题
 1. 类型膨胀
@@ -264,15 +282,17 @@ struct S;
 impl T1 for S {}
 impl T2 for S {}
 
-impl T1 for S as T1S3 {}
-impl T2 for S as T2S3 {} // 是否可以在此处限制必须使用 T1S3 ?
+impl T1 for S use T1S3 {}
+impl T2 for S use T2S3 where S: T1 use T1S3 {} //❓ 可选, 强制 T2S3 只能与 T1S3 一起使用
 
 // 坏消息: 类型膨胀
 // 好消息：不是自动生成的4种类型，不写就不会存在（不管是编译时还是运行时）
-let s1: S<_ use default> = S;
-let s2: S<T1 use T1S3> = S;
-let s3: S<T2 use T2S3> = S; // 如果有限制, 则自动推导为下一个
-let s4: S<T1 use T1S3, T2 use T2S3> = S;
+let s1: S + _ use default = S;
+let s2: S + T1 use T1S3 = S;
+let s3: S + T2 use T2S3 = S; // 如果有限制, 则自动推导为下一个
+let s4: S + T1 use T1S3 + T2 use T2S3 = S;
+
+type Invalid = S + T1 use default + T2 use T2S3; //❌ 如果有前面的限制性语法
 ``` 
 
 ## 兼容性破坏
@@ -292,18 +312,54 @@ fn is_same(a: &dyn T1, b: &dyn T1) -> bool {
 ```rust
 pub impl !Trait1 for i32 use NegTrait1 {} // ❌
 ```
-2. 当存在 negative-impls 时, 禁止有重叠overlap的 named-impl
+2. named-impl 与 negative-impls 的重叠检查放在类型单态化时
 ```rust
 #![feature(negative_impls)]
 trait DerefMut { }
 impl<T: ?Sized> !DerefMut for &T { }
 
-impl DerefMut for &i32 use DerefMutForI32 {} // ❌
+// 定义 named-impl 不检查是否其他实现(包括 !Trait)有重叠overlap
+impl DerefMut for &i32 use DerefMutForI32 {} // ✅
+
+// named-impl 与 negative-impls 的重叠检查放在类型单态化时
+type X = &i32 + DerefMut use DerefMutForI32; // ❌
+```
+
+## GAT
+与 GAT 正交性方面
+```rust
+type A1 = S + Iterator use SI64;  // ✅
+type A2 = S + Iterator<Item=i64> use SI64;  // ❌
+```
+```rust
+struct S;
+
+impl Iterator for S {
+    type Item = i32;
+    fn next(&mut self) -> Option<Self::Item> { todo!() }
+}
+
+impl Iterator for S use SI64{
+    type Item = i64;
+    fn next(&mut self) -> Option<Self::Item> { todo!() }
+}
+
+fn use_iter<T: Iterator>() -> T::Item { todo!() }
+fn use_iter_i32<T: Iterator<Item=i32>>() -> T::Item { todo!() }
+fn use_iter_i64<T: Iterator<Item=i64>>() -> T::Item { todo!() }
+
+use_iter::<S>();      // ✅
+use_iter_i32::<S>();  // ✅
+use_iter_i64::<S>();  // ❌
+
+use_iter::<S + Iterator use SI64>();     // ✅
+use_iter_i32::<S + Iterator use SI64>(); // ❌
+use_iter_i64::<S + Iterator use SI64>(); // ✅
 ```
 
 
 ## 参考
-- https://internals.rust-lang.org/t/pre-rfc-selectable-trait-implementations/23829 最接近, 但没有名字
+- https://internals.rust-lang.org/t/pre-rfc-selectable-trait-implementations/23829
+- https://internals.rust-lang.org/t/pre-rfc-scoped-impl-trait-for-type/19923
 - https://internals.rust-lang.org/t/looking-for-rfc-coauthors-on-named-impls/6275
 - https://internals.rust-lang.org/t/named-impls-and-impl-generics/22158
-- https://internals.rust-lang.org/t/pre-rfc-scoped-impl-trait-for-type/19923 理论最完善
