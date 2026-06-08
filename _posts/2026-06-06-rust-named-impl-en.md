@@ -11,6 +11,12 @@ tags:
 The purpose is clear: to bypass Rust's orphan rule.  
 The proposed syntax should be more fluent to write, more natural to read, and more complete than the referenced proposals.  
 
+## Advantages Over Other Drafts
+1. By forbidding named implementations for specific traits, [the hashtable problem](https://internals.rust-lang.org/t/revisit-orphan-rules/7795) is cleanly bypassed.
+2. Allow overlapping of named trait implementations, resolving the implementation during monomorphization, thus enabling specialization and partial specialization.
+3. The approach is more ergonomic, more explicit, and more complete.
+
+## New Grammar
 1. Introduce named trait implementations (named-impl)
 ```rust
 pub impl<T> Trait1 for Struct1<T> use ST1 {
@@ -24,7 +30,6 @@ pub impl<T> Trait1 for Struct1<T> use ST1 {
 type Struct1Default = Struct1<i32> + _ use default;
 type Struct1WithST1 = Struct1<i32> + Trait1 use ST1;
 ```
-
 
 ## Overview
 ```rust
